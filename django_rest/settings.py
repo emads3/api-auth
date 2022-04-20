@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'cuser', # https://pypi.org/project/django-username-email/
-    'rest_framework'
+    'rest_framework',
+    'users',
 ]
 
 MIDDLEWARE = [
