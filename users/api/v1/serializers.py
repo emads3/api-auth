@@ -20,3 +20,13 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
     def validate(self, attrs):
         attrs['password'] = make_password(attrs.get('password'))
         return attrs
+
+
+class TokenSerializer(serializers.Serializer):
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    token = serializers.CharField()
