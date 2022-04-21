@@ -5,8 +5,8 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-
-from .serializers import UserSerializer
+from rest_framework.decorators import action
+from .serializers import UserSerializer, TokenSerializer
 
 
 class UserViewSet(ModelViewSet):
@@ -34,3 +34,25 @@ class UserViewSet(ModelViewSet):
         message = render_to_string('mail_activation.html', {'token': token})
         email = EmailMessage(mail_subject, message, to=[user.email])
         email.send()
+
+    @action(detail=True, methods=['put'])
+    def status(self, request, pk=None):
+        serializer = TokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = self.get_object()
+
+        try:
+            Token.objects.get(user=user, key=serializer.data['token'])
+        except Token.DoesNotExist:
+            return Response(
+                {'token': 'Wrong token for user.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Set the user as active.
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        user_serializer = UserSerializer(
+            user, context={'request': request})
+        return Response(user_serializer.data)
