@@ -7,7 +7,9 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.decorators import action
-from .serializers import UserSerializer, TokenSerializer, UserAuthTokenSerializer
+from rest_framework import permissions
+from .permissions import IsOwnUserOrRaiseError
+from .serializers import UserSerializer, TokenSerializer, UserAuthTokenSerializer, ChangePasswordSerializer
 from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.models import AccessToken
 from oauthlib import common
@@ -60,6 +62,18 @@ class UserViewSet(ModelViewSet):
         user_serializer = UserSerializer(
             user, context={'request': request})
         return Response(user_serializer.data)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[permissions.IsAuthenticated, IsOwnUserOrRaiseError]
+    )
+    def password(self, request, pk=None):
+        user = self.get_object()
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserAuthTokenViewSet(GenericViewSet):
