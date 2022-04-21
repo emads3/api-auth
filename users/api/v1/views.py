@@ -9,7 +9,8 @@ from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.decorators import action
 from rest_framework import permissions
 from .permissions import IsOwnUserOrRaiseError
-from .serializers import UserSerializer, TokenSerializer, UserAuthTokenSerializer, ChangePasswordSerializer
+from .serializers import UserSerializer, TokenSerializer, UserAuthTokenSerializer, ChangePasswordSerializer, \
+    UnauthenticatedUserSerializer, FullUserDetailsSerializer
 from oauth2_provider.settings import oauth2_settings
 from oauth2_provider.models import AccessToken
 from oauthlib import common
@@ -62,6 +63,24 @@ class UserViewSet(ModelViewSet):
         user_serializer = UserSerializer(
             user, context={'request': request})
         return Response(user_serializer.data)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        serializer = UnauthenticatedUserSerializer(queryset, many=True)
+
+        if self.request.user and self.request.user.is_authenticated:
+            serializer = FullUserDetailsSerializer(queryset, many=True)
+
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = UnauthenticatedUserSerializer(instance)
+
+        if self.request.user and self.request.user.is_authenticated:
+            serializer = FullUserDetailsSerializer(instance)
+        return Response(serializer.data)
 
     @action(
         detail=True,

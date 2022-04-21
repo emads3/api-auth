@@ -97,3 +97,21 @@ class ChangePasswordSerializer(serializers.HyperlinkedModelSerializer):
         user = kwargs.get('user')
         user.set_password(self.validated_data['new_password'])
         user.save(update_fields=['password'])
+
+
+class FullUserDetailsSerializer(serializers.Serializer):
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['first_name', 'last_name', 'email', 'is_active']
+
+
+class UnauthenticatedUserSerializer(serializers.Serializer):
+    first_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['first_name', 'is_active']
