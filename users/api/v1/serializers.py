@@ -30,3 +30,27 @@ class TokenSerializer(serializers.Serializer):
         pass
 
     token = serializers.CharField()
+
+
+class UserAuthTokenSerializer(serializers.Serializer):
+    """ Serializer for `User` access token generation. """
+
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        style={'input_type': 'password'}, write_only=True)
+
+    def validate(self, attrs):
+        user = get_user_model()
+        email = attrs.get('email')
+        password = attrs.get('password')
+        error_msg = {'detail': 'user with given credentials not found.'}
+
+        try:
+            user = user.objects.get(email=email, is_active=True)
+        except user.DoesNotExist:
+            raise serializers.ValidationError(error_msg)
+
+        if not user.check_password(password):
+            raise serializers.ValidationError(error_msg)
+
+        return attrs

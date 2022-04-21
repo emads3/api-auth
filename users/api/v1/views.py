@@ -1,12 +1,16 @@
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.decorators import action
-from .serializers import UserSerializer, TokenSerializer
+from .serializers import UserSerializer, TokenSerializer, UserAuthTokenSerializer
+from oauth2_provider.settings import oauth2_settings
+from oauth2_provider.models import AccessToken
+from oauthlib import common
 
 
 class UserViewSet(ModelViewSet):
@@ -56,3 +60,38 @@ class UserViewSet(ModelViewSet):
         user_serializer = UserSerializer(
             user, context={'request': request})
         return Response(user_serializer.data)
+
+
+class UserAuthTokenViewSet(GenericViewSet):
+    serializer_class = UserAuthTokenSerializer
+    http_method_names = ['post']
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Generate token
+        access_token = self._generate_access_token(serializer)
+        return Response(
+            {'token': access_token.token},
+            status=status.HTTP_201_CREATED,
+        )
+
+    def _generate_access_token(self, serializer):
+        user = get_user_model()
+        user = user.objects.get(email=serializer.data['email'])
+
+        expiration_dt = (
+                timezone.datetime.now() +
+                timezone.timedelta(
+                    seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS)
+        )
+        # No need to create an Application.
+        access_token = AccessToken(
+            user=user,
+            expires=expiration_dt,
+            token=common.generate_token()
+        )
+        access_token.save()
+
+        return access_token
