@@ -74,6 +74,14 @@ class UserViewSet(ModelViewSet):
 
         return Response(serializer.data)
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = UnauthenticatedUserSerializer(instance)
+
+        if self.request.user and self.request.user.is_authenticated:
+            serializer = FullUserDetailsSerializer(instance)
+        return Response(serializer.data)
+
     @action(
         detail=True,
         methods=['post'],
