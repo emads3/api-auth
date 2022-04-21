@@ -3,6 +3,8 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
+import django.contrib.auth.password_validation as validators
+from django.core import exceptions
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -54,3 +56,44 @@ class UserAuthTokenSerializer(serializers.Serializer):
             raise serializers.ValidationError(error_msg)
 
         return attrs
+
+
+class ChangePasswordSerializer(serializers.HyperlinkedModelSerializer):
+    password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    new_password = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ('password', 'new_password')
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        new_password = attrs.get('new_password')
+
+        # user = self.context['request'].user
+        user = None
+        request = self.context.get("request")
+        # print(self.context)
+
+        if request and hasattr(request, "user"):
+            user = request.user
+
+        if not user.check_password(password):
+            # todo: localize this msg
+            raise serializers.ValidationError({'password': 'The password entered is incorrect.'})
+
+        if password == new_password:
+            # todo: localize this msg
+            raise serializers.ValidationError({'password': 'New password should be different.'})
+
+        try:
+            validators.validate_password(password=new_password, user=user)
+        except exceptions.ValidationError as e:
+            raise serializers.ValidationError({'new_password': list(e.messages)})
+
+        return attrs
+
+    def save(self, **kwargs):
+        user = kwargs.get('user')
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
